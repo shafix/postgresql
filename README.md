@@ -138,17 +138,106 @@ SELECT pg_terminate_backend(17230); -- Terminate certain query
 SELECT * FROM etl_job where prerequisites @> ARRAY[(SELECT id FROM etl_job WHERE module_name LIKE '%TABLENAME%')];
 ```
 
-#  
+# Show conflict locks 
 ```sql
-
+SELECT blocked_locks.pid     AS blocked_pid,
+         blocked_activity.usename  AS blocked_user,
+         blocking_locks.pid     AS blocking_pid,
+         blocking_activity.usename AS blocking_user,
+         blocked_activity.query    AS blocked_statement,
+         blocking_activity.query   AS current_statement_in_blocking_process,
+         blocked_activity.application_name AS blocked_application,
+         blocking_activity.application_name AS blocking_application
+   FROM  pg_catalog.pg_locks         blocked_locks
+    JOIN pg_catalog.pg_stat_activity blocked_activity  ON blocked_activity.pid = blocked_locks.pid
+    JOIN pg_catalog.pg_locks         blocking_locks
+        ON blocking_locks.locktype = blocked_locks.locktype
+        AND blocking_locks.DATABASE IS NOT DISTINCT FROM blocked_locks.DATABASE
+        AND blocking_locks.relation IS NOT DISTINCT FROM blocked_locks.relation
+        AND blocking_locks.page IS NOT DISTINCT FROM blocked_locks.page
+        AND blocking_locks.tuple IS NOT DISTINCT FROM blocked_locks.tuple
+        AND blocking_locks.virtualxid IS NOT DISTINCT FROM blocked_locks.virtualxid
+        AND blocking_locks.transactionid IS NOT DISTINCT FROM blocked_locks.transactionid
+        AND blocking_locks.classid IS NOT DISTINCT FROM blocked_locks.classid
+        AND blocking_locks.objid IS NOT DISTINCT FROM blocked_locks.objid
+        AND blocking_locks.objsubid IS NOT DISTINCT FROM blocked_locks.objsubid
+        AND blocking_locks.pid != blocked_locks.pid
+     JOIN pg_catalog.pg_stat_activity blocking_activity ON blocking_activity.pid = blocking_locks.pid
+   WHERE NOT blocked_locks.GRANTED;
 ```
 
-#  
+# Check the column desciptions of a specific table
 ```sql
-
+SELECT
+ relname as table,
+ attname as column,
+ description
+FROM pg_description
+ JOIN pg_attribute t1 ON t1.attrelid = pg_description.objoid AND pg_description.objsubid = t1.attnum
+ JOIN pg_class ON pg_class.oid = t1.attrelid
+WHERE relname LIKE '%TABLENAME%';
 ```
 
-#  
+# Lookup user groups and roles
 ```sql
-
+SELECT
+  r.rolname,
+  r.rolsuper,
+  r.rolinherit,
+  r.rolcreaterole,
+  r.rolcreatedb,
+  r.rolcanlogin,
+  r.rolconnlimit,
+  r.rolvaliduntil,
+  ARRAY(SELECT b.rolname
+        FROM pg_catalog.pg_auth_members m
+          JOIN pg_catalog.pg_roles b ON (m.roleid = b.oid)
+        WHERE m.member = r.oid)                    AS memberof,
+  pg_catalog.shobj_description(r.oid, 'pg_authid') AS description,
+  r.rolreplication,
+  r.rolbypassrls
+FROM pg_catalog.pg_roles r
+WHERE r.rolname !~ '^pg_'
+ORDER BY 1;
 ```
+
+# Maintaining user rights
+Remove certain role from a user:
+```sql
+REVOKE myRole FROM myUser
+```
+Removing user from database
+```sql
+DROP OWNED BY myUser;
+DROP USER myUser;
+ALTER USER myUser NO LOGIN
+```
+
+Grant some specific role to a user
+```sql
+GRANT myRole TO myUser;
+```
+
+Create new user with login option
+```sql
+CREATE USER myUser WITH LOGIN;
+```
+
+Create schema for a user
+```sql
+CREATE SCHEMA "my.username"  AUTHORIZATION "my.surname";
+```
+
+Grant usage for a schema. This grants rights to see tables under that schema.
+```sql
+GRANT USAGE ON SCHEMA someSchema TO myUser;
+```
+
+Grant select on all tables
+```sql
+GRANT SELECT ON ALL TABLES IN SCHEMA mySchema TO myRole/myUser ;
+```
+
+
+
+
