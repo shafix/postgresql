@@ -1,37 +1,101 @@
-## Welcome to GitHub Pages
+Markdown guide: [GitHub Flavored Markdown](https://guides.github.com/features/mastering-markdown/).
 
-You can use the [editor on GitHub](https://github.com/shafix/postgresql/edit/master/index.md) to maintain and preview the content for your website in Markdown files.
 
-Whenever you commit to this repository, GitHub Pages will run [Jekyll](https://jekyllrb.com/) to rebuild the pages in your site, from the content in your Markdown files.
-
-### Markdown
-
-Markdown is a lightweight and easy-to-use syntax for styling your writing. It includes conventions for
-
-```markdown
-Syntax highlighted code block
-
-# Header 1
-## Header 2
-### Header 3
-
-- Bulleted
-- List
-
-1. Numbered
-2. List
-
-**Bold** and _Italic_ and `Code` text
-
-[Link](url) and ![Image](src)
+# Check table owners
+```sql
+select t.table_name, t.table_type, c.relname, c.relowner, u.usename
+from information_schema.tables t
+join pg_catalog.pg_class c on (t.table_name = c.relname)
+join pg_catalog.pg_user u on (c.relowner = u.usesysid)
+where t.table_schema='SCHEMA';
 ```
+# Check prerequisites of a specific etl job
+```sql
+SELECT job.module_name, job.prerequisite as prerequisite_id, job1.module_name AS prerequisite_name
+FROM (SELECT module_name, unnest(prerequisites) AS prerequisite FROM etl_job) AS job
+LEFT JOIN etl_job job1 ON job1.id = job.prerequisite
+WHERE job.module_name = 'JOBNAME';
+```
+# Add prerequisite if not exists
+```sql
+UPDATE bdwh.etl_job
+   SET prerequisites = prerequisites || 
+    (SELECT array_agg(j.id) FROM bdwh.etl_job j WHERE j.module_name IN ('ADD_PREREQUISITE', 'ADD_PREREQUISITE') 
+   AND NOT EXISTS 
+    (SELECT 1 FROM bdwh.etl_job j2 WHERE j.id = ANY(j2.prerequisites) AND j2.module_name = 'LOAD_NAME'))
+WHERE module_name = 'LOAD_NAME';
+```
+# Grant access to schema and usage on all tables
+```sql
+SET ROLE ADMIN;
+GRANT USAGE ON SCHEMA owl TO "USERNAME";
+GRANT SELECT ON ALL TABLES IN SCHEMA XXX TO "USERNAME";
+```
+# Copy table from CSV
+```sql
+CREATE TABLE bdwh.copied_data (
+  aaa TEXT,
+  bbb INTEGER,
+  ccc DATE 
+);
 
-For more details see [GitHub Flavored Markdown](https://guides.github.com/features/mastering-markdown/).
+SET ROLE ADMIN;
 
-### Jekyll Themes
+COPY bdwh.copied_data(aaa , bbb , ccc)
+FROM 'samba/FILENAME.csv' DELIMITER ',' CSV HEADER;
 
-Your Pages site will use the layout and styles from the Jekyll theme you have selected in your [repository settings](https://github.com/shafix/postgresql/settings). The name of this theme is saved in the Jekyll `_config.yml` configuration file.
+SELECT * FROM bdwh.copied_data;
+```
+# Check constraints of a particular table
+```sql
+SELECT * FROM information_schema.constraint_table_usage
+WHERE table_name like '%TABLENAME%';
 
-### Support or Contact
+SELECT n.nspname AS schema_name,
+       t.relname AS table_name,
+       c.conname AS constraint_name
+FROM pg_constraint c
+  JOIN pg_class t ON c.conrelid = t.oid
+  JOIN pg_namespace n ON t.relnamespace = n.oid
+WHERE t.relname LIKE '%TABLENAME%';
+```
+# List all columns of a particular table
+```sql
+SELECT *
+FROM information_schema.columns
+WHERE table_schema LIKE '%SCHEMANAME%'
+AND table_name LIKE '%TABLENAME%';
+```
+# Cast as type of a mentioned column:
+```sql
+src_id bdwh.dwh_data_source.data_source_id%TYPE
+-- Gives src_id the same data type as the variable or collumn given before %TYPE
+```
+# Example of DO
+```sql
+DO LANGUAGE plpgsql
+$$
+DECLARE
+  src_id        INTEGER := (SELECT data_source_id
+                            FROM bdwh.dwh_data_source
+                            WHERE data_collection_name = 'application'
+                                  AND system_name = 'nfi');
 
-Having trouble with Pages? Check out our [documentation](https://help.github.com/categories/github-pages-basics/) or [contact support](https://github.com/contact) and we’ll help you sort it out.
+  broker_src_id INTEGER := (SELECT data_source_id
+                            FROM bdwh.dwh_data_source
+                            WHERE
+                              data_collection_name =
+                              'brokerapplicationdata');
+
+BEGIN
+  EXECUTE '
+  ALTER TABLE bdwh_part.nest_fi_application_attr_val
+    ADD CHECK (data_source_id IN (' || src_id || ', ' || broker_src_id || '));';
+
+END;
+$$;
+```
+# 
+```sql
+
+```
