@@ -95,7 +95,11 @@ BEGIN
 END;
 $$;
 ```
-# 
+# Distinct ON
 ```sql
-
+SELECT DISTINCT ON (crt_id)
+crt_id, pmt_id, pmt_date, pmt_sum
+FROM biz.dm_p_payment
+WHERE branch = 'PLVF'
+ORDER BY crt_id, pmt_date DESC;
 ```
