@@ -19,7 +19,7 @@ WHERE job.module_name = 'JOBNAME';
 
 # Check which jobs have a specific job as a prerequisite
 ```sql
-SELECT * FROM etl_job
+SELECT * FROM bdwh.etl_job
 WHERE prerequisites @> ARRAY[(SELECT id
                               FROM etl_job
                               WHERE module_name LIKE '%PREREQUISITE%')];
