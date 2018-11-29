@@ -17,6 +17,14 @@ LEFT JOIN etl_job job1 ON job1.id = job.prerequisite
 WHERE job.module_name = 'JOBNAME';
 ```
 
+# Check which jobs have a specific job as a prerequisite
+```sql
+SELECT * FROM etl_job
+WHERE prerequisites @> ARRAY[(SELECT id
+                              FROM etl_job
+                              WHERE module_name LIKE '%PREREQUISITE%')];
+```
+
 # Add prerequisite if not exists
 ```sql
 UPDATE bdwh.etl_job
