@@ -174,6 +174,27 @@ SELECT blocked_locks.pid     AS blocked_pid,
    WHERE NOT blocked_locks.GRANTED;
 ```
 
+# Show exclusive locks
+```sql
+SELECT
+  locktype,
+  relation :: REGCLASS,
+  mode,
+  transactionid      AS tid,
+  virtualtransaction AS vtid,
+  granted,
+  l.pid,
+  st.usename,
+  now() - st.query_start AS duration,
+  st.query,
+  st.state
+FROM pg_catalog.pg_locks l
+  LEFT JOIN pg_catalog.pg_database db ON db.oid = l.database
+  LEFT JOIN pg_catalog.pg_stat_activity st ON l.pid = st.pid
+WHERE (db.datname = 'bigdata' OR db.datname IS NULL)
+      AND NOT l.pid = pg_backend_pid();
+```
+
 # Check the column desciptions of a specific table
 ```sql
 SELECT
