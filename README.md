@@ -195,6 +195,24 @@ WHERE (db.datname = 'bigdata' OR db.datname IS NULL)
       AND NOT l.pid = pg_backend_pid();
 ```
 
+# Show locks version 2
+```sql 
+SELECT
+  blockingl.relation :: REGCLASS,
+  blockeda.pid    AS blocked_pid,
+  blockeda.query  AS blocked_query,
+  blockedl.mode   AS blocked_mode,
+  blockinga.pid   AS blocking_pid,
+  blockinga.query AS blocking_query,
+  blockingl.mode  AS blocking_mode
+FROM pg_catalog.pg_locks blockedl
+  JOIN pg_stat_activity blockeda ON blockedl.pid = blockeda.pid
+  JOIN pg_catalog.pg_locks blockingl ON (blockingl.relation = blockedl.relation
+                                         AND blockingl.locktype = blockedl.locktype AND blockedl.pid != blockingl.pid)
+  JOIN pg_stat_activity blockinga ON blockingl.pid = blockinga.pid
+WHERE NOT blockedl.granted AND blockinga.datname = 'bigdata';
+```
+
 # Check the column desciptions of a specific table
 ```sql
 SELECT
