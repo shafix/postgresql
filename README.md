@@ -316,4 +316,25 @@ from pg_foreign_server
 join pg_foreign_data_wrapper w on w.oid = srvfdw;
 ```
 
+Trigger checking
+```sql
+SELECT * FROM pg_trigger WHERE tgname NOT LIKE 'RI_%';
+
+select event_object_schema as table_schema,
+       event_object_table as table_name,
+       trigger_schema,
+       trigger_name,
+       string_agg(event_manipulation, ',') as event,
+       action_timing as activation,
+       action_condition as condition,
+       action_statement as definition
+from information_schema.triggers
+group by 1,2,3,4,6,7,8
+order by table_schema,
+         table_name;
+
+select pg_get_functiondef('FUNCTION_NAME'::regproc);
+
+SELECT event_object_table,trigger_name,event_manipulation,action_statement,action_timing FROM information_schema.triggers ORDER BY event_object_table,event_manipulation;
+```
 
