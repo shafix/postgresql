@@ -305,7 +305,7 @@ Grant select on all tables
 GRANT SELECT ON ALL TABLES IN SCHEMA mySchema TO myRole/myUser ;
 ```
 
-Check foreign server definitions
+# Check foreign server definitions
 ```sql
 select
     srvname as name,
@@ -316,7 +316,7 @@ from pg_foreign_server
 join pg_foreign_data_wrapper w on w.oid = srvfdw;
 ```
 
-Trigger checking
+# Trigger checking
 ```sql
 SELECT * FROM pg_trigger WHERE tgname NOT LIKE 'RI_%';
 
