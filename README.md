@@ -339,6 +339,7 @@ SELECT event_object_table,trigger_name,event_manipulation,action_statement,actio
 FROM information_schema.triggers 
 ORDER BY event_object_table,event_manipulation;
 ```
+
 # Checking who has what rights on what table
 ```sql
 select
@@ -352,6 +353,7 @@ from
     regexp_split_to_array(acl, '=|/') s
 where relname = 'TABLE_NAME';
 ```
+
 # Checking table sizes
 ```sql
 SELECT
@@ -365,6 +367,7 @@ WHERE nspname NOT IN ( 'pg_catalog', 'information_schema' ) AND nspname = 'SCHEM
 ORDER BY pg_table_size( C.oid ) DESC
 LIMIT 100;
 ```
+
 # Checking table row counts
 ```sql
 SELECT schemaname,relname,n_live_tup
@@ -372,3 +375,5 @@ SELECT schemaname,relname,n_live_tup
   WHERE schemaname = 'SCHEMA_NAME' AND relname LIKE '%TABLE_NAME%'
   ORDER BY relname DESC;
 ```
+
+
