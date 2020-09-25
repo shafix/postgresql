@@ -335,6 +335,40 @@ order by table_schema,
 
 select pg_get_functiondef('FUNCTION_NAME'::regproc);
 
-SELECT event_object_table,trigger_name,event_manipulation,action_statement,action_timing FROM information_schema.triggers ORDER BY event_object_table,event_manipulation;
+SELECT event_object_table,trigger_name,event_manipulation,action_statement,action_timing 
+FROM information_schema.triggers 
+ORDER BY event_object_table,event_manipulation;
 ```
-
+# Checking who has what rights on what table
+```sql
+select
+    coalesce(nullif(s[1], ''), 'public') as grantee,
+    s[2] as privileges
+from
+    pg_class c
+    join pg_namespace n on n.oid = relnamespace
+    join pg_roles r on r.oid = relowner,
+    unnest(coalesce(relacl::text[], format('{%s=arwdDxt/%s}', rolname, rolname)::text[])) acl,
+    regexp_split_to_array(acl, '=|/') s
+where relname = 'TABLE_NAME';
+```
+# Checking table sizes
+```sql
+SELECT
+  relname                                  AS "table_name",
+  nspname,
+  pg_size_pretty( pg_table_size( C.oid ) ) AS "table_size"
+FROM pg_class C
+  LEFT JOIN pg_namespace N
+    ON ( N.oid = C.relnamespace )
+WHERE nspname NOT IN ( 'pg_catalog', 'information_schema' ) AND nspname = 'SCHEMA_NAME' AND nspname !~ '^pg_toast' AND relkind IN ( 'r' )
+ORDER BY pg_table_size( C.oid ) DESC
+LIMIT 100;
+```
+# Checking table row counts
+```sql
+SELECT schemaname,relname,n_live_tup
+  FROM pg_stat_user_tables
+  WHERE schemaname = 'SCHEMA_NAME' AND relname LIKE '%TABLE_NAME%'
+  ORDER BY relname DESC;
+```
