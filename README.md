@@ -376,4 +376,36 @@ SELECT schemaname,relname,n_live_tup
   ORDER BY relname DESC;
 ```
 
+# Checking table live tuple counts, refreshing the statistics with analyze for several tables
+``` sql
+-- Live tuple counts
+SELECT schemaname,relname,n_live_tup
+  FROM pg_stat_user_tables
+  WHERE schemaname = 'SCHEMA_NAME'
+    AND n_live_tup > 0
+  ORDER BY relname DESC;
+
+-- Analyzing tables to update live tuple counts
+DO LANGUAGE plpgsql
+$$
+DECLARE
+  array_of_table_names TEXT [] := NULL;
+  table_name           TEXT;
+BEGIN
+
+  SELECT array_agg(DISTINCT tablename)
+  INTO array_of_table_names
+  FROM pg_tables WHERE schemaname = 'SCHEMA_NAME';
+
+  FOREACH table_name IN ARRAY array_of_table_names
+    LOOP
+      EXECUTE
+      $q$
+        ANALYZE dwh_listener.$q$ || table_name || $q$;
+      $q$;
+      RAISE NOTICE '% analyzed', table_name;
+    END LOOP;
+END;
+$$;
+```
 
