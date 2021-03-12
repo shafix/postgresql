@@ -409,3 +409,50 @@ END;
 $$;
 ```
 
+# Checking how much each column is filled in the table:
+```
+DO LANGUAGE plpgsql
+$sql$
+DECLARE
+  v_column_array TEXT[];
+  v_each_column TEXT;
+  v_table_name TEXT := 'dm_nest_corp_application_v2'; -- Change table name!
+  v_final_query TEXT;
+  v_final_query_end TEXT;
+  v_individual_query TEXT;
+  v_total_result NUMERIC;
+  v_column_result INTEGER;
+
+BEGIN
+
+  v_final_query:= $$ SELECT count(*) AS total $$;
+  v_final_query_end:= $$ FROM $$ || v_table_name || $$; $$;
+
+  SELECT array_agg(column_name)
+  INTO v_column_array
+  FROM information_schema.columns WHERE table_name = v_table_name;
+
+  FOREACH v_each_column IN ARRAY v_column_array
+  LOOP
+    v_individual_query := '
+    ,count(*) FILTER (WHERE ' || v_each_column || ' IS NOT NULL) AS ' || v_each_column || ' ';
+    v_final_query := v_final_query || v_individual_query;
+  END LOOP;
+
+  EXECUTE $$
+  DROP TABLE IF EXISTS temp_result;
+  CREATE TEMPORARY TABLE temp_result AS
+  $$ || v_final_query || v_final_query_end || $$
+  $$;
+
+  EXECUTE $$ SELECT total FROM temp_result; $$ INTO v_total_result;
+
+  FOREACH v_each_column IN ARRAY v_column_array
+  LOOP
+    EXECUTE $$ SELECT $$ || v_each_column || $$ FROM temp_result; $$ INTO v_column_result;
+    RAISE NOTICE '% : %', v_each_column, (100 / v_total_result * v_column_result)::DECIMAL(5,1)::TEXT || '%';
+  END LOOP;
+
+END
+$sql$;
+```
