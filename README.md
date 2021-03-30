@@ -416,7 +416,7 @@ $sql$
 DECLARE
   v_column_array TEXT[];
   v_each_column TEXT;
-  v_table_name TEXT := 'dm_nest_corp_application_v2'; -- Change table name!
+  v_table_name TEXT := 'dm_nest_bg_application_v2'; -- Change table name!
   v_final_query TEXT;
   v_final_query_end TEXT;
   v_individual_query TEXT;
@@ -424,6 +424,8 @@ DECLARE
   v_column_result INTEGER;
 
 BEGIN
+  DROP TABLE IF EXISTS temp_table_columns_filled;
+  CREATE TEMPORARY TABLE temp_table_columns_filled ( t_column TEXT, t_filled_percent DECIMAL(5,1) );
 
   v_final_query:= $$ SELECT count(*) AS total $$;
   v_final_query_end:= $$ FROM $$ || v_table_name || $$; $$;
@@ -451,8 +453,10 @@ BEGIN
   LOOP
     EXECUTE $$ SELECT $$ || v_each_column || $$ FROM temp_result; $$ INTO v_column_result;
     RAISE NOTICE '% : %', v_each_column, (100 / v_total_result * v_column_result)::DECIMAL(5,1)::TEXT || '%';
+    INSERT INTO temp_table_columns_filled(t_column, t_filled_percent) VALUES (v_each_column, (100 / v_total_result * v_column_result)::DECIMAL(5,1));
   END LOOP;
 
 END
 $sql$;
+SELECT * FROM temp_table_columns_filled;
 ```
