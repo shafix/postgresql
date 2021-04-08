@@ -460,3 +460,26 @@ END
 $sql$;
 SELECT * FROM temp_table_columns_filled;
 ```
+
+# Generate time series
+```
+DROP TABLE IF EXISTS temp_dates;
+CREATE TEMPORARY TABLE temp_dates AS
+SELECT
+  (date_trunc('day', dd):: date) AS report_date_from,
+  (date_trunc('day', dd):: date + INTERVAL '15 days')::DATE AS report_date_to
+FROM generate_series( '2021-01-01'::timestamp, '2021-06-01'::timestamp, '15 days'::interval) dd;
+
+
+DROP TABLE IF EXISTS temp_report_names;
+CREATE TEMPORARY TABLE temp_report_names AS
+SELECT unnest('{report_name_1,report_name_2}'::TEXT[]) AS report_name;
+
+DROP TABLE IF EXISTS temp_branches;
+CREATE TEMPORARY TABLE temp_branches AS
+SELECT unnest('{XXBIG,XXBIG}'::TEXT[]) AS report_org;
+
+SELECT 'node index.js ' || report_name || ' ' || report_org || ' ' || report_date_from || ' ' || report_date_to  FROM temp_dates t1
+CROSS JOIN temp_report_names t2
+CROSS JOIN temp_branches;
+```
