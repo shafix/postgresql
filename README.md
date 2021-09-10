@@ -483,3 +483,117 @@ SELECT 'node index.js ' || report_name || ' ' || report_org || ' ' || report_dat
 CROSS JOIN temp_report_names t2
 CROSS JOIN temp_branches;
 ```
+
+# Compare data mart column filled %
+```
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------
+DO LANGUAGE plpgsql
+$sql$
+  DECLARE
+    v_column_array TEXT[];
+    v_each_column TEXT;
+    v_table_name TEXT := 'TABLE_NAME';
+    v_table_schema TEXT := 'SCHEMA_NAME';
+    v_final_query TEXT;
+    v_final_query_end TEXT;
+    v_individual_query TEXT;
+    v_total_result NUMERIC;
+    v_column_result INTEGER;
+
+  BEGIN
+    DROP TABLE IF EXISTS temp_table_columns_filled;
+    CREATE TEMPORARY TABLE temp_table_columns_filled ( t_column TEXT, t_filled_percent DECIMAL(5,1) );
+
+    v_final_query:= $$ SELECT count(*) AS total $$;
+    v_final_query_end:= $$ FROM $$ || v_table_schema || $$.$$ || v_table_name || $$; $$;
+
+    SELECT array_agg(column_name)
+    INTO v_column_array
+    FROM information_schema.columns WHERE table_name = v_table_name AND table_schema = v_table_schema;
+
+    FOREACH v_each_column IN ARRAY v_column_array
+      LOOP
+        v_individual_query := '
+    ,count(*) FILTER (WHERE ' || v_each_column || ' IS NOT NULL) AS ' || v_each_column || ' ';
+        v_final_query := v_final_query || v_individual_query;
+      END LOOP;
+
+    EXECUTE $$
+  DROP TABLE IF EXISTS temp_result;
+  CREATE TEMPORARY TABLE temp_result AS
+  $$ || v_final_query || v_final_query_end || $$
+  $$;
+
+    EXECUTE $$ SELECT total FROM temp_result; $$ INTO v_total_result;
+
+    FOREACH v_each_column IN ARRAY v_column_array
+      LOOP
+        EXECUTE $$ SELECT $$ || v_each_column || $$ FROM temp_result; $$ INTO v_column_result;
+        RAISE NOTICE '% : %', v_each_column, (100 / v_total_result * v_column_result)::DECIMAL(5,1)::TEXT || '%';
+        INSERT INTO temp_table_columns_filled(t_column, t_filled_percent) VALUES (v_each_column, (100 / v_total_result * v_column_result)::DECIMAL(5,1));
+      END LOOP;
+
+  END
+$sql$;
+DROP TABLE IF EXISTS temp_table_columns_filled_1;
+CREATE TEMPORARY TABLE temp_table_columns_filled_1 AS
+SELECT * FROM temp_table_columns_filled;
+-------------------------------------------------------------------------------------------------------------------------------------------------------
+DO LANGUAGE plpgsql
+$sql$
+  DECLARE
+    v_column_array TEXT[];
+    v_each_column TEXT;
+    v_table_name TEXT := 'TABLE_NAME';
+    v_table_schema TEXT := 'SCHEMA_NAME';
+    v_final_query TEXT;
+    v_final_query_end TEXT;
+    v_individual_query TEXT;
+    v_total_result NUMERIC;
+    v_column_result INTEGER;
+
+  BEGIN
+    DROP TABLE IF EXISTS temp_table_columns_filled;
+    CREATE TEMPORARY TABLE temp_table_columns_filled ( t_column TEXT, t_filled_percent DECIMAL(5,1) );
+
+    v_final_query:= $$ SELECT count(*) AS total $$;
+    v_final_query_end:= $$ FROM $$ || v_table_schema || $$.$$ || v_table_name || $$; $$;
+
+    SELECT array_agg(column_name)
+    INTO v_column_array
+    FROM information_schema.columns WHERE table_name = v_table_name AND table_schema = v_table_schema;
+
+    FOREACH v_each_column IN ARRAY v_column_array
+      LOOP
+        v_individual_query := '
+    ,count(*) FILTER (WHERE ' || v_each_column || ' IS NOT NULL) AS ' || v_each_column || ' ';
+        v_final_query := v_final_query || v_individual_query;
+      END LOOP;
+
+    EXECUTE $$
+  DROP TABLE IF EXISTS temp_result;
+  CREATE TEMPORARY TABLE temp_result AS
+  $$ || v_final_query || v_final_query_end || $$
+  $$;
+
+    EXECUTE $$ SELECT total FROM temp_result; $$ INTO v_total_result;
+
+    FOREACH v_each_column IN ARRAY v_column_array
+      LOOP
+        EXECUTE $$ SELECT $$ || v_each_column || $$ FROM temp_result; $$ INTO v_column_result;
+        RAISE NOTICE '% : %', v_each_column, (100 / v_total_result * v_column_result)::DECIMAL(5,1)::TEXT || '%';
+        INSERT INTO temp_table_columns_filled(t_column, t_filled_percent) VALUES (v_each_column, (100 / v_total_result * v_column_result)::DECIMAL(5,1));
+      END LOOP;
+
+  END
+$sql$;
+DROP TABLE IF EXISTS temp_table_columns_filled_2;
+CREATE TEMPORARY TABLE temp_table_columns_filled_2 AS
+SELECT * FROM temp_table_columns_filled;
+-------------------------------------------------------------------------------------------------------------------------------------------------------
+SELECT t1.t_column, t1.t_filled_percent, t2.t_filled_percent, t1.t_filled_percent - t2.t_filled_percent AS diff
+FROM temp_table_columns_filled_1 t1 JOIN temp_table_columns_filled_2 t2 ON t1.t_column = t2.t_column
+WHERE t1.t_filled_percent - t2.t_filled_percent > 1 OR t1.t_filled_percent - t2.t_filled_percent < -1
+ORDER BY t1.t_filled_percent - t2.t_filled_percent;
+```
