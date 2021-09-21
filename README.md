@@ -597,3 +597,32 @@ FROM temp_table_columns_filled_1 t1 JOIN temp_table_columns_filled_2 t2 ON t1.t_
 WHERE t1.t_filled_percent - t2.t_filled_percent > 1 OR t1.t_filled_percent - t2.t_filled_percent < -1
 ORDER BY t1.t_filled_percent - t2.t_filled_percent;
 ```
+
+# Analyze multiple tables with a loop
+```
+DO $$
+  DECLARE
+    tab RECORD;
+  BEGIN
+    for tab in (select t.relname::varchar AS table_name, n.nspname::varchar AS schema_name
+                FROM pg_class t
+                  JOIN pg_namespace n ON n.oid = t.relnamespace
+                WHERE t.relkind = 'r' and n.nspname::varchar = 'SCHEMA' AND t.relname::varchar ILIKE '%TABLE_NAME%'
+                order by 1)
+      LOOP
+        RAISE NOTICE 'ANALYZE %.%', tab.schema_name, tab.table_name;
+        EXECUTE format('ANALYZE %I.%I', tab.schema_name, tab.table_name);
+      end loop;
+  end
+$$;
+```
+
+# Check table counts after analysis
+```
+SELECT schemaname,relname,n_live_tup
+FROM pg_stat_user_tables
+WHERE schemaname = 'SCHEMA'
+  AND relname ILIKE '%TABLE_NAME%'
+ORDER BY n_live_tup DESC;
+```
+
