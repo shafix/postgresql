@@ -486,7 +486,6 @@ CROSS JOIN temp_branches;
 
 # Compare data mart column filled %
 ```
-
 -------------------------------------------------------------------------------------------------------------------------------------------------------
 DO LANGUAGE plpgsql
 $sql$
@@ -626,3 +625,36 @@ WHERE schemaname = 'SCHEMA'
 ORDER BY n_live_tup DESC;
 ```
 
+# Hour by hour received apps in stage:
+```
+SELECT
+  received_timestamp::DATE,
+  count(*) FILTER ( WHERE TO_CHAR(received_timestamp::TIMESTAMP,'HH24') = '00' ) AS t0,
+  count(*) FILTER ( WHERE TO_CHAR(received_timestamp::TIMESTAMP,'HH24') = '01' ) AS t1,
+  count(*) FILTER ( WHERE TO_CHAR(received_timestamp::TIMESTAMP,'HH24') = '02' ) AS t2,
+  count(*) FILTER ( WHERE TO_CHAR(received_timestamp::TIMESTAMP,'HH24') = '03' ) AS t3,
+  count(*) FILTER ( WHERE TO_CHAR(received_timestamp::TIMESTAMP,'HH24') = '04' ) AS t4,
+  count(*) FILTER ( WHERE TO_CHAR(received_timestamp::TIMESTAMP,'HH24') = '05' ) AS t5,
+  count(*) FILTER ( WHERE TO_CHAR(received_timestamp::TIMESTAMP,'HH24') = '06' ) AS t6,
+  count(*) FILTER ( WHERE TO_CHAR(received_timestamp::TIMESTAMP,'HH24') = '07' ) AS t7,
+  count(*) FILTER ( WHERE TO_CHAR(received_timestamp::TIMESTAMP,'HH24') = '08' ) AS t8,
+  count(*) FILTER ( WHERE TO_CHAR(received_timestamp::TIMESTAMP,'HH24') = '09' ) AS t9,
+  count(*) FILTER ( WHERE TO_CHAR(received_timestamp::TIMESTAMP,'HH24') = '10' ) AS t10,
+  count(*) FILTER ( WHERE TO_CHAR(received_timestamp::TIMESTAMP,'HH24') = '11' ) AS t11,
+  count(*) FILTER ( WHERE TO_CHAR(received_timestamp::TIMESTAMP,'HH24') = '12' ) AS t12,
+  count(*) FILTER ( WHERE TO_CHAR(received_timestamp::TIMESTAMP,'HH24') = '13' ) AS t13,
+  count(*) FILTER ( WHERE TO_CHAR(received_timestamp::TIMESTAMP,'HH24') = '14' ) AS t14,
+  count(*) FILTER ( WHERE TO_CHAR(received_timestamp::TIMESTAMP,'HH24') = '15' ) AS t15,
+  count(*) FILTER ( WHERE TO_CHAR(received_timestamp::TIMESTAMP,'HH24') = '16' ) AS t16,
+  count(*) FILTER ( WHERE TO_CHAR(received_timestamp::TIMESTAMP,'HH24') = '17' ) AS t17,
+  count(*) FILTER ( WHERE TO_CHAR(received_timestamp::TIMESTAMP,'HH24') = '18' ) AS t18,
+  count(*) FILTER ( WHERE TO_CHAR(received_timestamp::TIMESTAMP,'HH24') = '19' ) AS t19,
+  count(*) FILTER ( WHERE TO_CHAR(received_timestamp::TIMESTAMP,'HH24') = '20' ) AS t20,
+  count(*) FILTER ( WHERE TO_CHAR(received_timestamp::TIMESTAMP,'HH24') = '21' ) AS t21,
+  count(*) FILTER ( WHERE TO_CHAR(received_timestamp::TIMESTAMP,'HH24') = '22' ) AS t22,
+  count(*) FILTER ( WHERE TO_CHAR(received_timestamp::TIMESTAMP,'HH24') = '23' ) AS t23
+FROM [STAGE_TABLE]
+WHERE received_timestamp::DATE >= '2021-09-01'
+GROUP BY received_timestamp::DATE
+ORDER BY received_timestamp::DATE DESC;
+```
