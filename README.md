@@ -368,45 +368,40 @@ ORDER BY pg_table_size( C.oid ) DESC
 LIMIT 100;
 ```
 
-# Checking table row counts
-```sql
-SELECT schemaname,relname,n_live_tup
-  FROM pg_stat_user_tables
-  WHERE schemaname = 'SCHEMA_NAME' AND relname LIKE '%TABLE_NAME%'
-  ORDER BY relname DESC;
-```
-
-# Checking table live tuple counts, refreshing the statistics with analyze for several tables
+# Checking table live tuple / row counts, refreshing the statistics with analyze for several tables
 ``` sql
--- Live tuple counts
-SELECT schemaname,relname,n_live_tup
-  FROM pg_stat_user_tables
-  WHERE schemaname = 'SCHEMA_NAME'
-    AND n_live_tup > 0
-  ORDER BY relname DESC;
-
 -- Analyzing tables to update live tuple counts
 DO LANGUAGE plpgsql
 $$
-DECLARE
-  array_of_table_names TEXT [] := NULL;
-  table_name           TEXT;
-BEGIN
+  DECLARE
+    v_array_of_table_names TEXT [] := NULL;
+    v_individual_table     TEXT;
 
-  SELECT array_agg(DISTINCT tablename)
-  INTO array_of_table_names
-  FROM pg_tables WHERE schemaname = 'SCHEMA_NAME';
+    v_schema_name          TEXT    := '...'; -- Specify schema of the table(s)
+    v_table_name           TEXT    := '...'; -- Specify (exactly or vaguely with % table(s))
+  BEGIN
 
-  FOREACH table_name IN ARRAY array_of_table_names
-    LOOP
-      EXECUTE
-      $q$
-        ANALYZE dwh_listener.$q$ || table_name || $q$;
+    SELECT array_agg(DISTINCT tablename)
+    INTO v_array_of_table_names
+    FROM pg_tables WHERE schemaname = v_schema_name AND tablename ILIKE v_table_name;
+
+    FOREACH v_individual_table IN ARRAY v_array_of_table_names
+      LOOP
+        EXECUTE
+              $q$
+        ANALYZE bdwh_part.$q$ || v_individual_table || $q$;
       $q$;
-      RAISE NOTICE '% analyzed', table_name;
-    END LOOP;
-END;
+        RAISE NOTICE '% analyzed', v_individual_table;
+      END LOOP;
+  END;
 $$;
+
+-- Live tuple counts
+SELECT schemaname,relname,n_live_tup
+FROM pg_stat_user_tables
+WHERE schemaname = '...' -- Specify schema of the table(s)
+  AND relname ILIKE '...' -- Specify (exactly or vaguely with % table(s))
+ORDER BY relname DESC;
 ```
 
 # Checking how much each column is filled in the table:
