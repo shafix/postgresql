@@ -366,6 +366,15 @@ FROM pg_class C
 WHERE nspname NOT IN ( 'pg_catalog', 'information_schema' ) AND nspname = 'SCHEMA_NAME' AND nspname !~ '^pg_toast' AND relkind IN ( 'r' )
 ORDER BY pg_table_size( C.oid ) DESC
 LIMIT 100;
+
+SELECT
+  relname  as table_name,
+  pg_size_pretty(pg_total_relation_size(relid)) As "Total Size",
+  pg_size_pretty(pg_indexes_size(relid)) as "Index Size",
+  pg_size_pretty(pg_relation_size(relid)) as "Actual Size"
+FROM pg_catalog.pg_statio_user_tables
+WHERE relname ILIKE  '%nest_loan_provision_calculation%'
+ORDER BY pg_total_relation_size(relid) DESC;
 ```
 
 # Checking table live tuple / row counts, refreshing the statistics with analyze for several tables
