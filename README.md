@@ -662,3 +662,39 @@ WHERE received_timestamp::DATE >= '2021-09-01'
 GROUP BY received_timestamp::DATE
 ORDER BY received_timestamp::DATE DESC;
 ```
+
+# Chech which columns of the table have comments:
+```
+WITH column_comments AS (
+SELECT
+  cols.column_name,
+  (
+    SELECT
+      pg_catalog.col_description(c.oid, cols.ordinal_position::int)
+    FROM pg_catalog.pg_class c
+    WHERE
+        c.oid     = (SELECT cols.table_name::regclass::oid) AND
+        c.relname = cols.table_name
+  ) as column_comment
+
+FROM information_schema.columns cols
+WHERE cols.table_schema = 'TABLESCHEMA'
+  AND cols.table_name = 'TABLENAME')
+SELECT * FROM column_comments 
+WHERE column_comment IS NULL; -- Only show where the comment is missing
+```
+
+# Metabase specific - replace something in all queries:
+```
+WITH updated_queries AS (
+  SELECT
+    id,
+    dataset_query AS original_query,
+    replace( dataset_query, 'REPLACE_WHAT', 'WITH_WHAT' ) AS updated_query
+  FROM report_card
+  WHERE dataset_query::TEXT ILIKE '%REPLACE_WHAT%'
+)
+UPDATE public.report_card t1 SET dataset_query = t2.updated_query
+FROM updated_queries t2
+WHERE t1.id = t2.id; 
+```
