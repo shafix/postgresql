@@ -398,7 +398,7 @@ $$
       LOOP
         EXECUTE
               $q$
-        ANALYZE bdwh_part.$q$ || v_individual_table || $q$;
+        ANALYZE $q$ || v_schema_name || $q$.$q$ || v_individual_table || $q$;
       $q$;
         RAISE NOTICE '% analyzed', v_individual_table;
       END LOOP;
