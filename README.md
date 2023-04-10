@@ -698,3 +698,35 @@ UPDATE public.report_card t1 SET dataset_query = t2.updated_query
 FROM updated_queries t2
 WHERE t1.id = t2.id; 
 ```
+
+# Duplicate indexes:
+```
+DROP TABLE IF EXISTS xxx;
+CREATE TEMPORARY TABLE xxx AS
+SELECT
+  n.nspname                     AS "idx_schema",
+  t.relname                     AS "idx_table",
+  c.relname                     AS "idx_index",
+  a.attname                     AS idx_column_name,
+  PG_GET_INDEXDEF( indexrelid ) AS "idx_definition"
+FROM pg_catalog.pg_class c
+  JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+  JOIN pg_catalog.pg_index i ON i.indexrelid = c.oid
+  JOIN pg_catalog.pg_class t ON i.indrelid = t.oid
+  JOIN pg_catalog.pg_attribute a ON t.oid = a.attrelid AND a.attnum = ANY ( i.indkey )
+WHERE c.relkind = 'i'
+  AND n.nspname NOT IN ( 'pg_catalog', 'pg_toast' )
+  AND pg_catalog.PG_TABLE_IS_VISIBLE( c.oid )
+ORDER BY n.nspname, t.relname, c.relname, a.attname;
+
+DROP TABLE IF EXISTS xxx1;
+CREATE TEMPORARY TABLE xxx1 AS
+SELECT idx_schema, idx_table, idx_column_name, count(*) AS idx_ct, array_agg(idx_definition) AS idx_definitions
+FROM xxx
+GROUP BY idx_schema, idx_table, idx_column_name
+HAVING count(*) > 1;
+
+SELECT idx_schema, idx_table, idx_column_name, unnest(idx_definitions) AS idx_definition
+FROM xxx1
+ORDER BY idx_schema, idx_table, idx_column_name;
+```
