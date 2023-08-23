@@ -730,3 +730,62 @@ SELECT idx_schema, idx_table, idx_column_name, unnest(idx_definitions) AS idx_de
 FROM xxx1
 ORDER BY idx_schema, idx_table, idx_column_name;
 ```
+
+# Dead tuple count for single table and many tables
+```
+-- ALL Tables with at least 10000 rows and at least 5% dead tuples
+SELECT n_live_tup, n_dead_tup, 100.0/n_live_tup*n_dead_tup AS dead_percent, schemaname || '.' || relname
+FROM pg_stat_all_tables
+WHERE n_live_tup > 0 AND n_dead_tup > 0
+  AND (n_live_tup > 10000 OR n_dead_tup > 10000)
+  AND 100.0/n_live_tup*n_dead_tup > 5
+  AND schemaname IN ('xxx')
+ORDER BY 100.0/n_live_tup*n_dead_tup DESC;
+
+
+
+-- Dead tuples of a SPECIFC table
+SELECT n_live_tup, n_dead_tup, 100.0/n_live_tup*n_dead_tup AS dead_percent, schemaname || '.' || relname AS table_name
+FROM pg_stat_all_tables
+WHERE schemaname || '.' || relname = 'SCHEMA.TABLENAME' AND (n_live_tup > 0 OR n_dead_tup > 0); 
+```
+# General table size estimation / counting
+```
+-- Limited counting
+SELECT count(*) FROM (SELECT 1 FROM SCHEMA.TABLENAME LIMIT 500000) t;
+
+
+
+-- Estimate counting 1
+SELECT reltuples::bigint AS estimate
+FROM   pg_class
+WHERE  oid = 'SCHEMA.TABLENAME'::regclass;
+
+
+
+-- Estimate counting 2
+SELECT (CASE WHEN c.reltuples < 0 THEN NULL       -- never vacuumed
+             WHEN c.relpages = 0 THEN float8 '0'  -- empty table
+             ELSE c.reltuples / c.relpages END
+  * (pg_catalog.pg_relation_size(c.oid)
+    / pg_catalog.current_setting('block_size')::int)
+         )::bigint
+FROM   pg_catalog.pg_class c
+WHERE  c.oid = 'SCHEMA.TABLENAME'::regclass;
+```
+# Freespace ratio (will vacuum full be useful?):
+```
+--CREATE EXTENSION pg_freespacemap;
+SELECT count(*) as npages, round(100 * avg(avail)/8192 ,2) as average_freespace_ratio FROM pg_freespace('TABLENAME'); 
+```
+# Table size / disk space usage
+```
+SELECT
+  relname as table_name,
+  pg_size_pretty(pg_total_relation_size(relid)) As "Total Size",
+  pg_size_pretty(pg_indexes_size(relid)) as "Index Size",
+  pg_size_pretty(pg_relation_size(relid)) as "Actual Size"
+FROM pg_catalog.pg_statio_user_tables
+WHERE relname ILIKE '%TABLENAME%'
+ORDER BY pg_total_relation_size(relid) DESC; 
+```
