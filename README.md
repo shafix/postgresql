@@ -789,3 +789,27 @@ FROM pg_catalog.pg_statio_user_tables
 WHERE relname ILIKE '%TABLENAME%'
 ORDER BY pg_total_relation_size(relid) DESC; 
 ```
+
+# Disk space unreclaimed after db crash / recovery mode, "unnecessary" files in the cluster directory
+```
+DROP TABLE IF EXISTS xxx;
+CREATE TEMPORARY TABLE xxx AS
+WITH d0 AS (SELECT oid FROM pg_database WHERE datname = CURRENT_DATABASE( )),
+     d1 AS (SELECT pg_ls_dir AS fn, regexp_match( pg_ls_dir, '^([0-9]+)(.*)$' ) AS match
+            FROM d0, PG_LS_DIR( 'base/' || d0.oid )
+            ORDER BY 1),
+     d2 AS (SELECT fn, match[1] AS base, match[2] AS ext
+            FROM d1
+            WHERE ( fn NOT ILIKE 'pg_%' )),
+     d3 AS (SELECT d.*, pg_filenode_relation( 0, base::oid ) AS relation FROM d2 d)
+SELECT fn, PG_SIZE_PRETTY( ( PG_STAT_FILE( 'base/' || d0.oid || '/' || fn ) ).size ) AS total_size
+FROM d0, d3
+WHERE relation IS NULL
+ORDER BY PG_SIZE_PRETTY( ( PG_STAT_FILE( 'base/' || d0.oid || '/' || fn ) ).size ) DESC;
+
+DROP TABLE IF EXISTS xxx1;
+CREATE TEMPORARY TABLE xxx1 AS
+SELECT TRIM( total_size, ' MB' )::BIGINT AS total_size FROM xxx WHERE total_size NOT ILIKE '%bytes' AND total_size NOT ILIKE '%kB';
+
+SELECT SUM( total_size ) FROM xxx1;
+```
