@@ -837,3 +837,15 @@ WHERE
     AND  (pg_relation_size(i.indexrelid)) != 0
 ORDER BY pg_relation_size(i.indexrelid) DESC;
 ```
+
+# Foreign table to source table name mapping
+```
+-- Get source table - foreign table name mapping based on source table schema
+SELECT
+  ft.ftoptions                                            AS foreign_table_name,
+  SUBSTRING( ftoptions::TEXT FROM 'table_name=([^,}]+)' ) AS src_table_name,
+  c.relname                                               AS actual_table_name
+FROM pg_foreign_table ft
+  JOIN pg_class c ON c.oid = ft.ftrelid
+WHERE ftoptions::TEXT ILIKE '%schema_name=crm,%';
+```
